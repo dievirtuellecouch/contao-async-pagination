@@ -1,7 +1,0 @@
-<select data-pagination-filter-key="category">
-    <?php foreach ($this->items as $item): ?>
-        <option value="<?= htmlspecialchars($item['alias'] ?: '') ?>">
-            <?= $item['link'] ?>
-        </option>
-    <?php endforeach; ?>
-</select>

@@ -1,0 +1,5 @@
+<select data-pagination-filter-key="category">
+    {% for item in items %}
+        <option value="{{ item.alias|default }}">{{ item.link|insert_tag }}</option>
+    {% endfor %}
+</select>
