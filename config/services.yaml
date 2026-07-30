@@ -1,0 +1,15 @@
+services:
+  _defaults:
+    autowire: true
+    autoconfigure: true
+    public: false
+
+  DVC\AsyncPagination\Controller\ContentElement\AsyncPaginationWrapperController:
+
+  DVC\AsyncPagination\Controller\ContentElement\AsyncDeferredLoadWrapperController:
+
+  DVC\AsyncPagination\Controller\ContentElement\RandomElementWrapperController:
+
+  DVC\AsyncPagination\Controller\AjaxEndpointController:
+
+  DVC\AsyncPagination\EventListener\AddFrontendScriptToContentElementListener:

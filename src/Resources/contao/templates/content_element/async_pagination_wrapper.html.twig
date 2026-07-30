@@ -1,0 +1,13 @@
+{% extends "@Contao/content_element/_base.html.twig" %}
+
+{% set attributes = attrs()
+    .set('data-module', 'pagination-reload')
+%}
+
+{% block content %}
+    {% for element in elements %}
+        <div{{ attrs(element.attributes) }}>
+            {{ content_element(element.reference) }}
+        </div>
+    {% endfor %}
+{% endblock %}

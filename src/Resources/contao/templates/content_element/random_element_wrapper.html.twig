@@ -1,0 +1,7 @@
+{% extends "@Contao/content_element/_base.html.twig" %}
+
+{% block content %}
+    {% for element in elements %}
+        {{ content_element(element) }}
+    {% endfor %}
+{% endblock %}
