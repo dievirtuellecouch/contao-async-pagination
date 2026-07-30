@@ -11,37 +11,43 @@ const ListReload = function (container) {
     this.elements = {
         container: null,
         list: null,
+        listContainer: null,
         filterContainer: null,
         filterItems: [],
     };
     this.config = {
-        moduleSelector: 'data-ajax-reload-element',
     };
     this.state = {
         isLoading: false,
-        currentFilterUrl: null,
-        shouldReplaceContainer: false,
+        currentFilter: {},
     };
 
     let self = this;
 
-    this.load = async function(url) {
-        const reloadId = self.getReloadElement().getAttribute(self.config.moduleSelector);
-        const params = new URLSearchParams([
-            ['ajax_reload_element', reloadId],
-        ]);
+    this.load = async function(filter) {
+        const params = new URLSearchParams(filter);
+        params.forEach((value, key) => {
+            if (value === 'null') {
+                params.delete(key);
+            }
+        });
+
+        const endpointType = self.elements.targetContainer.getAttribute('data-type');
+        const endpointId = self.elements.targetContainer.getAttribute('data-id');
 
         try {
             self.setLoadingState(true);
 
-            const request = await fetch(`/${url}`, {
-                method: 'POST',
-                body: params,
+            const request = await fetch(`/_dvc/ajax/${endpointType}/${endpointId}?${params.toString()}`, {
+                method: 'GET',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
-                    'Content-Type': 'application/x-www-form-urlencoded',
                 },
             });
+
+            if (request.status !== 200) {
+                return;
+            }
 
             const result = await request.json();
 
@@ -49,7 +55,7 @@ const ListReload = function (container) {
                 return;
             }
 
-            self.state.currentFilterUrl = this.removeSearchParamsFromString(url);
+            self.state.currentFilter = filter;
 
             self.render();
             self.transition(self.replace.bind(self, result.html));
@@ -64,16 +70,6 @@ const ListReload = function (container) {
         self.state.isLoading = newState;
     }
 
-    this.removeSearchParamsFromString = function(url) {
-        const searchParamsPosition = url.indexOf('?');
-
-        if (searchParamsPosition < 0) {
-            return url;
-        }
-
-        return url.slice(0, searchParamsPosition);
-    };
-
     this.transition = function(callback) {
         if (!document.startViewTransition) {
             callback();
@@ -85,7 +81,16 @@ const ListReload = function (container) {
 
     this.render = function() {
         for (const item of self.elements.filterItems) {
-            const isActive = item.getAttribute('href') == self.state.currentFilterUrl;
+            const [filterKey, filterValue] = self.getFilterFromElement(item);
+
+            const isActive = (() => {
+                if (Object.keys(self.state.currentFilter).indexOf(filterKey) < 0 && filterValue === null) {
+                    return true;
+                }
+
+                return self.state.currentFilter[filterKey] === filterValue;
+            })();
+
             item.setAttribute('data-active', isActive);
         }
     };
@@ -105,13 +110,8 @@ const ListReload = function (container) {
         parent.replaceChild(newElement, replaceElement);
 
         window.requestAnimationFrame(() => {
-            if (this.state.shouldReplaceContainer) {
-                self.elements.container = newElement;
-            }
-            else {
-                self.elements.list = newElement;
-            }
-            
+            self.elements.target = newElement;
+
             self.initInnerEventListener();
         });
     };
@@ -120,34 +120,61 @@ const ListReload = function (container) {
         event.preventDefault();
 
         const targetElement = event.currentTarget;
-        let target = null;
+        let filter = {};
+        let newFilterKey = null;
+        let newFilterValue = null;
+        let newFilter = {};
 
         switch (targetElement.tagName) {
             case 'A':
-                target = targetElement.getAttribute('href');
+                const targetHref = new URL(targetElement.href);
+
+                if (targetHref.searchParams.size > 0) {
+                    filter = Object.assign({}, filter, Object.fromEntries(targetHref.searchParams.entries()));
+                }
+
+                [newFilterKey, newFilterValue] = self.getFilterFromElement(targetElement);
+
                 break;
 
             case 'SELECT':
-                target = targetElement.value;
+                [newFilterKey, newFilterValue] = self.getFilterFromInput(targetElement);
+
                 break;
 
             default:
                 break;
         }
 
-        if (target === null) {
-            return;
+        if (newFilterKey !== null) {
+            newFilter[newFilterKey] = newFilterValue;
         }
 
-        self.load(target);
+        filter = Object.assign(filter, newFilter);
+
+        self.load(filter);
     };
 
     this.getReloadElement = function() {
-        if (this.state.shouldReplaceContainer) {
-            return this.elements.container;
+        return this.elements.target;
+    }
+
+    this.getFilterFromElement = function(element) {
+        const filterKey = element.getAttribute('data-pagination-filter-key');
+        let filterValue = element.getAttribute('data-pagination-filter-value');
+
+        return [filterKey, filterValue];
+    }
+
+    this.getFilterFromInput = function(element) {
+        const filterKey = element.getAttribute('data-pagination-filter-key');
+        let filterValue = element.value;
+
+        if (filterValue === '') {
+            filterValue = null;
         }
 
-        return this.elements.list;
+        return [filterKey, filterValue];
     }
 
     this.initInnerEventListener = function() {
@@ -160,17 +187,26 @@ const ListReload = function (container) {
 
     this.init = function() {
         self.elements.container = container;
-        self.elements.list = container.querySelector(`[${self.config.moduleSelector}]`);
-        self.elements.filterContainer = container.querySelector('.mod_newscategories');
+        self.elements.targetContainer = container.querySelector(`[data-element="target"]`);
+
+        if (self.elements.targetContainer === null) {
+            return;
+        }
+
+        self.elements.target = self.elements.targetContainer.children[0];
+
+        self.elements.filterContainer = container.querySelector('[data-element="filter"]');
         self.elements.filterItems = self.elements.filterContainer?.querySelectorAll('a') ?? [];
         self.elements.filterSelect = self.elements.filterContainer?.querySelector('select') ?? null;
-
-        self.state.shouldReplaceContainer = self.elements.container.getAttribute(self.config.moduleSelector) !== null;
 
         self.initInnerEventListener();
 
         for (const item of self.elements.filterItems) {
             item.addEventListener('click', self.onFilterChange);
+
+            if (item.getAttribute('data-active') === 'true') {
+                self.state.currentFilter = Object.assign(self.state.currentFilter, self.getFilterFromElement(item));
+            }
         }
 
         if (self.elements.filterSelect !== null) {

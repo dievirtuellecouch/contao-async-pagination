@@ -1,0 +1,28 @@
+<ul class="{{ level }}{% if isActiveCategories|default %} active-categories{% endif %}">
+    {% for item in items %}
+        <li{{ attrs().addClass(item.class) }}>
+            <a{{ attrs()
+                .set('href', item.href)
+                .addClass(item.class)
+                .set('data-pagination-filter-key', 'category')
+                .setIfExists('data-pagination-filter-value', item.alias|default)
+                .setIfExists('title', item.linkTitle|default)
+                .set('itemprop', 'url')
+                .set('aria-haspopup', true, item.subitems|default)
+                .set('data-active', 'true', item.isActive)
+            }}>
+                {% if item.image|default %}
+                    {{ include('@Contao/picture_default.html.twig', item.image.picture) }}
+                {% endif %}
+
+                <span class="name" itemprop="name">{{ item.link|insert_tag_raw }}</span>
+
+                {% if showQuantity|default %}
+                    <span class="quantity">({{ item.quantity }})</span>
+                {% endif %}
+            </a>
+
+            {{ item.subitems|default|raw }}
+        </li>
+    {% endfor %}
+</ul>

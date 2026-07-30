@@ -6,6 +6,10 @@ services:
 
   DVC\AsyncPagination\Controller\ContentElement\AsyncPaginationWrapperController:
 
-  DVC\AsyncPagination\EventListener\AddFrontendScriptToContentElementListener:
+  DVC\AsyncPagination\Controller\ContentElement\AsyncDeferredLoadWrapperController:
 
-  DVC\AsyncPagination\EventListener\AddWrapperToContentElementListener:
+  DVC\AsyncPagination\Controller\ContentElement\RandomElementWrapperController:
+
+  DVC\AsyncPagination\Controller\AjaxEndpointController:
+
+  DVC\AsyncPagination\EventListener\AddFrontendScriptToContentElementListener:

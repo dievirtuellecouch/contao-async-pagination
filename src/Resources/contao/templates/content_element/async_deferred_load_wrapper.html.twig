@@ -1,0 +1,11 @@
+{% extends "@Contao/content_element/_base.html.twig" %}
+
+{% set attributes = attrs()
+    .set('data-module', 'async-load')
+%}
+
+{% block content %}
+    {% for element in elements %}
+        <div{{ attrs(element.attributes) }}></div>
+    {% endfor %}
+{% endblock %}
