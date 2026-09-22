@@ -25,3 +25,38 @@ Async responses of the endpoint are cached for 1 hour by default. To change the 
 async_pagination:
     shared_max_age: 60
 ```
+
+## Page context (since 5.7.2)
+
+Ajax rendering retains the source page and its language, including Contao's
+legacy `$objPage` and default translations. This fixes news category filtering
+and pagination in debug mode and keeps pagination labels in the site's language.
+
+The bundled scripts send the optional `_dvc_page` query parameter containing
+`window.location.pathname + window.location.search`. Custom clients may send the
+same site-local path. Existing endpoint URLs, the `{"html": "..."}` response,
+wrapper templates and configuration remain unchanged. Without this parameter,
+the endpoint resolves a same-origin `Referer`, then falls back to the site's
+published root page. A client without either source cannot identify a specific
+child page, so custom clients should pass `_dvc_page` when that matters.
+
+Page context is resolved through Contao routing before its locale, page access
+and maintenance listeners. Explicit invalid paths are rejected; foreign URLs
+are not accepted as explicit context. Responses based on legacy request headers
+vary by `Referer` and `Accept-Language`; protected page responses remain private.
+
+Version 5.7.2 keeps the existing PHP `^8.3` and Contao `^5.7` requirements. It does
+not change the supported Contao major/minor versions of 5.7.1.
+
+## Regression tests
+
+With the dependencies from a Contao 5.7 installation available:
+
+```sh
+php tests/page-context.php /path/to/contao/vendor/autoload.php
+```
+
+The tests cover German/English context, legacy clients, foreign origins,
+invalid paths, custom 404 pages and unrelated requests. Integration verification
+should additionally cover news pagination, category filtering and debug mode
+with `codefog/contao-news_categories` installed.

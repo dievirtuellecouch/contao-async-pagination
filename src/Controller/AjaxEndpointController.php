@@ -7,6 +7,8 @@ use Contao\Controller;
 use Contao\CoreBundle\Cache\EntityCacheTags;
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Contao\ModuleModel;
+use Contao\PageModel;
+use Contao\System;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Attribute\AsController;
@@ -34,20 +36,37 @@ class AjaxEndpointController
     public function __invoke(Request $request, string $moduleType, int|string $typeOrId): JsonResponse
     {
         $this->framework->initialize();
+        $this->framework->getAdapter(System::class)->loadLanguageFile('default');
         $uncached = $request->query->getBoolean('uncached', false);
 
-        switch ($moduleType) {
-            case 'module':
-                $html = $this->renderModule($typeOrId);
-                break;
+        $page = $request->attributes->get('pageModel');
+        $previousPage = $GLOBALS['objPage'] ?? null;
 
-            case 'content':
-                $html = $this->renderContent($typeOrId);
-                break;
+        if ($page instanceof PageModel) {
+            $this->entityCacheTags->tagWith($page);
+            $GLOBALS['objPage'] = $page;
+        }
 
-            default:
-                $html = null;
-                break;
+        try {
+            switch ($moduleType) {
+                case 'module':
+                    $html = $this->renderModule($typeOrId);
+                    break;
+
+                case 'content':
+                    $html = $this->renderContent($typeOrId);
+                    break;
+
+                default:
+                    $html = null;
+                    break;
+            }
+        } finally {
+            if ($previousPage === null) {
+                unset($GLOBALS['objPage']);
+            } else {
+                $GLOBALS['objPage'] = $previousPage;
+            }
         }
 
         if ($html === null) {
@@ -60,7 +79,13 @@ class AjaxEndpointController
             'html' => $html,
         ]);
 
-        if ($this->getSharedMaxAge() && $uncached !== true) {
+        if ($request->attributes->get('_dvc_context_from_headers', false)) {
+            $response->setVary(['Referer', 'Accept-Language']);
+        }
+
+        if ($page instanceof PageModel && $page->protected) {
+            $response->setPrivate();
+        } elseif ($this->getSharedMaxAge() && $uncached !== true) {
             $response->setSharedMaxAge($this->getSharedMaxAge());
         }
 

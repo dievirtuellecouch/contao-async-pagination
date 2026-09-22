@@ -13,3 +13,7 @@ services:
   DVC\AsyncPagination\Controller\AjaxEndpointController:
 
   DVC\AsyncPagination\EventListener\AddFrontendScriptToContentElementListener:
+
+  DVC\AsyncPagination\EventListener\AjaxPageContextListener:
+    arguments:
+      $router: '@router'

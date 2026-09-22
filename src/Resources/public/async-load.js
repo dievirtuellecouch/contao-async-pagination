@@ -17,6 +17,8 @@ const AsyncLoad = function (container) {
             'uncached': true,
         });
 
+        params.set('_dvc_page', window.location.pathname + window.location.search);
+
         const endpointType = self.elements.target.getAttribute('data-type');
         const endpointId = self.elements.target.getAttribute('data-id');
 

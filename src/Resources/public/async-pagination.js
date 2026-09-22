@@ -32,6 +32,8 @@ const ListReload = function (container) {
             }
         });
 
+        params.set('_dvc_page', window.location.pathname + window.location.search);
+
         const endpointType = self.elements.targetContainer.getAttribute('data-type');
         const endpointId = self.elements.targetContainer.getAttribute('data-id');
 
