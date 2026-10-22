@@ -36,11 +36,13 @@ const ListReload = function (container) {
 
         const endpointType = self.elements.targetContainer.getAttribute('data-type');
         const endpointId = self.elements.targetContainer.getAttribute('data-id');
+        const endpoint = self.elements.targetContainer.getAttribute('data-endpoint')
+            ?? `/_dvc/ajax/${endpointType}/${endpointId}`;
 
         try {
             self.setLoadingState(true);
 
-            const request = await fetch(`/_dvc/ajax/${endpointType}/${endpointId}?${params.toString()}`, {
+            const request = await fetch(`${endpoint}?${params.toString()}`, {
                 method: 'GET',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
@@ -60,11 +62,20 @@ const ListReload = function (container) {
             self.state.currentFilter = filter;
 
             self.render();
-            self.transition(self.replace.bind(self, result.html));
-            self.setLoadingState(false);
+            const replaced = await self.transition(self.replace.bind(self, result.html));
+
+            if (replaced && self.config.scrollToTop) {
+                self.elements.targetContainer.scrollIntoView({
+                    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
+                    block: 'start',
+                });
+            }
         }
         catch (error) {
             console.error(error);
+        }
+        finally {
+            self.setLoadingState(false);
         }
     };
 
@@ -72,13 +83,22 @@ const ListReload = function (container) {
         self.state.isLoading = newState;
     }
 
-    this.transition = function(callback) {
-        if (!document.startViewTransition) {
-            callback();
-            return;
+    this.transition = async function(callback) {
+        if (!document.startViewTransition || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            return callback();
         }
 
-        document.startViewTransition(() => callback());
+        let replaced = false;
+        const transition = document.startViewTransition(() => {
+            replaced = callback();
+        });
+
+        await transition.updateCallbackDone;
+        // A skipped animation still applies the DOM update. Scroll only once
+        // its snapshots no longer cover the newly rendered list.
+        await transition.finished.catch(() => {});
+
+        return replaced;
     };
 
     this.render = function() {
@@ -106,22 +126,17 @@ const ListReload = function (container) {
         const newElement = template.content.children.length === 1 ? template.content.children[0] : null;
 
         if (newElement === null) {
-            return;
+            return false;
         }
 
         parent.replaceChild(newElement, replaceElement);
-
-        window.requestAnimationFrame(() => {
-            self.elements.target = newElement;
-
-            self.initInnerEventListener();
-        });
+        self.elements.target = newElement;
+        return true;
     };
 
-    this.onFilterChange = function(event) {
+    this.onFilterChange = function(event, targetElement = event.currentTarget) {
         event.preventDefault();
 
-        const targetElement = event.currentTarget;
         let filter = {};
         let newFilterKey = null;
         let newFilterValue = null;
@@ -180,15 +195,20 @@ const ListReload = function (container) {
     }
 
     this.initInnerEventListener = function() {
-        const innerElements = self.elements.container.querySelectorAll('.pagination a');
+        // The wrapper survives replacements. Delegation also handles clicks
+        // immediately after a page swap, before the next animation frame.
+        self.elements.container.addEventListener('click', (event) => {
+            const link = event.target instanceof Element ? event.target.closest('.pagination a') : null;
 
-        for (const link of innerElements) {
-            link.addEventListener('click', self.onFilterChange);
-        }
+            if (link?.closest('[data-module="pagination-reload"]') === self.elements.container) {
+                self.onFilterChange(event, link);
+            }
+        });
     };
 
     this.init = function() {
         self.elements.container = container;
+        self.config.scrollToTop = container.getAttribute('data-scroll-to-top') === 'true';
         self.elements.targetContainer = container.querySelector(`[data-element="target"]`);
 
         if (self.elements.targetContainer === null) {

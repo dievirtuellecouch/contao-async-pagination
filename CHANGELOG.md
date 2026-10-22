@@ -1,5 +1,15 @@
 # Changelog
 
+## 5.7.3
+
+- Add an opt-in checkbox to scroll to the start of the reloaded list after
+  pagination or filter changes. Wait for view transitions and respect reduced motion.
+- Preserve the preview front controller and installation base path in generated
+  pagination endpoints and source-page matching.
+- Delegate pagination clicks on the persistent wrapper and always reset loading
+  state after errors.
+- Extend page-context and scrolling regression coverage.
+
 ## 5.7.2
 
 - Restore the source page and locale when rendering Ajax modules and content.

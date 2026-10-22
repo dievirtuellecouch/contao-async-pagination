@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace DVC\AsyncPagination\EventListener;
 
 use Contao\CoreBundle\Routing\PageFinder;
@@ -42,7 +44,18 @@ class AjaxPageContextListener
         }
 
         if ($source) {
-            $context = Request::create($explicit ? $request->getSchemeAndHttpHost().$source : $source);
+            // Retain the real entry point so /preview.php is treated as the
+            // base URL, not as part of the Contao page alias. Preview is only
+            // inherited from that entry point, never enabled by a query value.
+            $context = Request::create(
+                $explicit ? $request->getSchemeAndHttpHost().$source : $source,
+                'GET',
+                [],
+                $request->cookies->all(),
+                [],
+                $request->server->all(),
+            );
+            $context->attributes->set('_preview', $request->attributes->getBoolean('_preview'));
 
             // Never resolve a foreign website's context. Matching is local routing,
             // not an HTTP request to the supplied URL.

@@ -2,6 +2,7 @@
 
 {% set attributes = attrs()
     .set('data-module', 'pagination-reload')
+    .set('data-scroll-to-top', scroll_to_top|default(false) ? 'true' : 'false')
 %}
 
 {% block content %}

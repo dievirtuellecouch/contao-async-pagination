@@ -53,6 +53,9 @@ $matcher = new class($blog, $english) implements RequestMatcherInterface {
 
         return match ($request->getPathInfo()) {
             '/blog' => ['pageModel' => $this->blog],
+            '/draft-blog' => $request->attributes->getBoolean('_preview')
+                ? ['pageModel' => $this->blog]
+                : throw new ResourceNotFoundException(),
             '/en/blog' => ['pageModel' => $this->english],
             '/custom-404' => ['pageModel' => page(14, 'de', 'error_404')],
             '/_dvc/ajax/module/14' => ['_route' => AjaxEndpointController::class],
@@ -113,3 +116,35 @@ $listener(new RequestEvent($kernel, $request, HttpKernelInterface::MAIN_REQUEST)
 check(!$request->attributes->has('pageModel'), 'Unrelated requests must remain unchanged.');
 check(!array_filter($matcher->matched, fn ($url) => str_contains($url, 'foreign.test') || str_contains($url, ':444')), 'Foreign origins must not be matched.');
 echo "PASS invalid contexts and unrelated requests\n";
+
+foreach (['', '/site'] as $basePath) {
+    foreach ([true, false] as $explicit) {
+        $source = $basePath.'/preview.php/draft-blog';
+        $request = Request::create(
+            'https://example.test'.$basePath.'/preview.php/_dvc/ajax/module/14',
+            'GET',
+            $explicit ? ['_dvc_page' => $source] : [],
+            [],
+            [],
+            ['SCRIPT_NAME' => $basePath.'/preview.php', 'SCRIPT_FILENAME' => '/var/www/public/preview.php'],
+        );
+        $request->attributes->add(['_route' => AjaxEndpointController::class, '_preview' => true]);
+        if (!$explicit) {
+            $request->headers->set('Referer', 'https://example.test'.$source);
+        }
+        $listener(new RequestEvent($kernel, $request, HttpKernelInterface::MAIN_REQUEST));
+        check((int) $request->attributes->get('pageModel')->id === 4, 'Preview entry point must resolve the unpublished page.');
+        check($request->attributes->get('_locale') === 'de', 'Preview page locale must be retained.');
+    }
+}
+foreach (['/draft-blog', '/preview.php/draft-blog'] as $source) {
+    $request = Request::create('https://example.test/_dvc/ajax/module/14', 'GET', ['_dvc_page' => $source, '_preview' => '1']);
+    $request->attributes->set('_route', AjaxEndpointController::class);
+    try {
+        $listener(new RequestEvent($kernel, $request, HttpKernelInterface::MAIN_REQUEST));
+        throw new RuntimeException('A query parameter must not enable preview routing.');
+    } catch (HttpExceptionInterface $e) {
+        check($e->getStatusCode() === 404, 'Unpublished context must stay unavailable outside preview.');
+    }
+}
+echo "PASS preview entry points, subdirectory, Referer and public isolation\n";

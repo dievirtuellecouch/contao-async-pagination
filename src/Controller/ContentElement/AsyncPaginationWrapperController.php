@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace DVC\AsyncPagination\Controller\ContentElement;
 
 use Contao\ContentModel;
@@ -8,8 +10,10 @@ use Contao\CoreBundle\DependencyInjection\Attribute\AsContentElement;
 use Contao\CoreBundle\Framework\ContaoFramework;
 use Contao\CoreBundle\Twig\FragmentTemplate;
 use Contao\ModuleModel;
+use DVC\AsyncPagination\Controller\AjaxEndpointController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 #[AsContentElement(
     category: 'includes',
@@ -23,6 +27,7 @@ class AsyncPaginationWrapperController extends AbstractContentElementController
 
     public function __construct(
         private readonly ContaoFramework $framework,
+        private readonly UrlGeneratorInterface $router,
     ) {
     }
 
@@ -42,17 +47,25 @@ class AsyncPaginationWrapperController extends AbstractContentElementController
                 $nestedModuleModel = $this->framework->getAdapter(ModuleModel::class)->findById($nestedContentModel->module);
             }
 
+            $element = $nestedModuleModel ?? $nestedContentModel;
+            $type = $this->getTypeForModel($element);
+
             $elements[] = [
                 'attributes' => [
-                    'data-element' => $this->getIdentifierForModel($nestedModuleModel ?? $nestedContentModel),
-                    'data-type' => $this->getTypeForModel($nestedModuleModel ?? $nestedContentModel),
-                    'data-id' => $nestedModuleModel?->id ?? $nestedContentModel->id,
+                    'data-element' => $this->getIdentifierForModel($element),
+                    'data-type' => $type,
+                    'data-id' => $element->id,
+                    'data-endpoint' => $this->router->generate(AjaxEndpointController::class, [
+                        'moduleType' => $type,
+                        'typeOrId' => $element->id,
+                    ]),
                 ],
                 'reference' => $reference,
             ];
         }
 
         $template->set('elements', $elements);
+        $template->set('scroll_to_top', (bool) $model->asyncPaginationScrollToTop);
 
         return $template->getResponse();
     }
