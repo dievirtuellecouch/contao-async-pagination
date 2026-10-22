@@ -53,7 +53,7 @@ function fixture({ enabled = true, reduced = false, status = 200, missingHtml = 
 }
 
 (async () => {
-    for (const options of [{}, { enabled: false }, { reduced: true }, { status: 404 }, { missingHtml: true }, { replaced: false }]) {
+    for (const options of [{}, { enabled: false }, { reduced: true }, { hasFilter: false }, { status: 404 }, { missingHtml: true }, { replaced: false }]) {
         const f = fixture(options);
         assert.equal(f.calls.length, 0, 'Initial rendering must not scroll or fetch.');
         await f.instance.load({ page_n13: '2' });
@@ -63,25 +63,28 @@ function fixture({ enabled = true, reduced = false, status = 200, missingHtml = 
         if (shouldScroll) {
             assert.equal(scrolls[0].behavior, options.reduced ? 'instant' : 'smooth');
             assert.equal(scrolls[0].block, 'start');
-            assert.equal(scrolls[0].target, 'content');
+            assert.equal(scrolls[0].target, options.hasFilter === false ? 'content' : 'filter');
         }
         assert.equal(f.instance.state.isLoading, false, 'Loading must finish on success and failure.');
         assert.match(f.calls[0].url, /^\/preview\.php\/_dvc\/ajax\/module\/13\?/);
     }
 
     const change = (f, element) => f.instance.onFilterChange({ currentTarget: element, preventDefault() {} });
-    for (const control of ['select', 'link', 'reset', 'pagination']) {
-        const f = fixture();
-        let element = f[control];
-        if (control === 'reset') { element = f.select; element.value = ''; }
-        if (control === 'pagination') {
-            element = { tagName: 'A', href: 'https://example.test/preview.php/blog?category=physio&page_n13=2', getAttribute: () => null };
+    for (const hasFilter of [true, false]) {
+        for (const control of ['select', 'link', 'reset', 'pagination', 'unfilteredPagination']) {
+            const f = fixture({ hasFilter });
+            let element = f[control];
+            if (control === 'reset') { element = f.select; element.value = ''; }
+            if (control === 'pagination' || control === 'unfilteredPagination') {
+                const query = control === 'pagination' ? 'category=physio&page_n13=2' : 'page_n13=2';
+                element = { tagName: 'A', href: `https://example.test/preview.php/blog?${query}`, getAttribute: () => null };
+            }
+            await change(f, element);
+            const scrolls = f.calls.filter(c => c.type === 'scroll');
+            assert.equal(scrolls.length, 1);
+            assert.equal(scrolls[0].target, hasFilter ? 'filter' : 'content', `${control}, hasFilter=${hasFilter}`);
+            if (control === 'reset') assert(!new URL(f.calls[0].url, 'https://example.test').searchParams.has('category'));
         }
-        await change(f, element);
-        const scrolls = f.calls.filter(c => c.type === 'scroll');
-        assert.equal(scrolls.length, 1);
-        assert.equal(scrolls[0].target, control === 'pagination' ? 'content' : 'filter');
-        if (control === 'reset') assert(!new URL(f.calls[0].url, 'https://example.test').searchParams.has('category'));
     }
     for (const options of [{ enabled: false }, { status: 404 }, { hasFilter: false }, { reduced: true }]) {
         const f = fixture(options);
@@ -109,5 +112,5 @@ function fixture({ enabled = true, reduced = false, status = 200, missingHtml = 
     skipped.finish();
     await skippedLoad;
     assert.equal(skipped.calls.filter(c => c.type === 'scroll').length, 1);
-    console.log('PASS filter/select/link/reset targets, filtered pagination, fallback, opt-in, reduced motion, errors and transitions');
+    console.log('PASS filter/select/link/reset and filtered/unfiltered pagination, content fallback, opt-in, reduced motion, errors and transitions');
 })().catch(error => { console.error(error); process.exitCode = 1; });

@@ -1,5 +1,13 @@
 # Changelog
 
+## 5.7.5
+
+- Scroll pagination to the filter controls whenever the wrapper has a filter,
+  including when no category is selected. Without a filter, scroll to the list.
+- Keep the existing opt-in, reduced-motion and view-transition behavior.
+  Extend regression coverage for pagination with and without filters.
+  No database migration needed.
+
 ## 5.7.4
 
 - Scroll to the filter controls after filter selection or reset, keeping them

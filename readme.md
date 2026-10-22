@@ -7,12 +7,12 @@ Adds wrapper around paginated frontend modules for asynchronous reloading.
 ### Scroll to the list after loading (since 5.7.3)
 
 Edit the **Asynchronous pagination** content element and enable **Scroll to the
-list after loading**. After successful pagination, the browser scrolls to the
-start of that wrapper's reloaded list. Since 5.7.4, selecting or resetting a
-filter scrolls to that wrapper's filter controls instead, keeping them visible.
-If a custom wrapper has no filter container, the list remains the fallback.
+list after loading**. Since 5.7.5, successful pagination and filter changes
+(including reset) scroll to that wrapper's filter controls whenever present,
+keeping them visible even if no category is selected. Without a filter container,
+the browser scrolls to the start of the reloaded list.
 The option is disabled by default and does not scroll on initial page load or
-failed requests. Pagination still targets the list when a category is selected.
+failed requests.
 
 Scrolling waits for view transitions and respects `prefers-reduced-motion` as
 well as existing CSS scroll padding/margins. No additional stylesheet is needed.
