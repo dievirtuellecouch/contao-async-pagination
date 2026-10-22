@@ -24,7 +24,7 @@ const ListReload = function (container) {
 
     let self = this;
 
-    this.load = async function(filter) {
+    this.load = async function(filter, scrollTarget = self.elements.targetContainer) {
         const params = new URLSearchParams(filter);
         params.forEach((value, key) => {
             if (value === 'null') {
@@ -65,7 +65,7 @@ const ListReload = function (container) {
             const replaced = await self.transition(self.replace.bind(self, result.html));
 
             if (replaced && self.config.scrollToTop) {
-                self.elements.targetContainer.scrollIntoView({
+                scrollTarget.scrollIntoView({
                     behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
                     block: 'start',
                 });
@@ -169,7 +169,11 @@ const ListReload = function (container) {
 
         filter = Object.assign(filter, newFilter);
 
-        self.load(filter);
+        const scrollTarget = newFilterKey !== null
+            ? self.elements.filterContainer ?? self.elements.targetContainer
+            : self.elements.targetContainer;
+
+        return self.load(filter, scrollTarget);
     };
 
     this.getReloadElement = function() {

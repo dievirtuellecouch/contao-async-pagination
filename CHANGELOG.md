@@ -1,5 +1,14 @@
 # Changelog
 
+## 5.7.4
+
+- Scroll to the filter controls after filter selection or reset, keeping them
+  visible above the reloaded content. Pagination continues to scroll to the list.
+- Keep the existing opt-in checkbox and reduced-motion/transition behavior;
+  fall back to the list if a custom wrapper has no filter container.
+- Add regression coverage for select and link filters, reset, filtered pagination,
+  disabled scrolling and missing filter containers. No database migration needed.
+
 ## 5.7.3
 
 - Add an opt-in checkbox to scroll to the start of the reloaded list after
